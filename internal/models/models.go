@@ -23,14 +23,11 @@ type User struct {
 
 // still need to figure out structure of CIK info table
 type CompanyInfo struct {
-	CIK            int64
-	SIC            int64
-	SICDescription string
-	CompanyName    string
-	Tickers        []struct {
-		Ticker string
-	}
-	Exchanges []struct {
+	CIK         int64
+	SIC         int64 // possible make this a foreign key
+	CompanyName string
+	Ticker      string
+	Exchanges   []struct {
 		Exchange string
 	}
 

@@ -9,24 +9,26 @@ type CIKList struct {
 
 // struct for unmarshalling Submissions data JSON
 type Submissions struct {
-	SIC            json.Number `json:"sic"`
-	SICDescription string      `json:"sicDescription"`
-	Name           string      `json:"name"`
-	Tickers        []string    `json:"tickers"`
-	Exchanges      []string    `json:"exchanges"`
-	Description    string      `json:"description"`
-	Category       string      `json:"category"`
+	SIC            int64    `json:"sic"` // COULD CAUSE ERROR
+	SICDescription string   `json:"sicDescription"`
+	Name           string   `json:"name"`
+	Tickers        []string `json:"tickers"`
+	Exchanges      []string `json:"exchanges"`
+	Description    string   `json:"description"`
+	Category       string   `json:"category"`
 }
 
 // struct for unmarshalling Facts data JSON
 type Facts struct {
-	Facts struct {
+	EntityName string `json:"entityName"`
+	Facts      struct {
 		USGAAP struct {
 			NetIncomeLoss struct {
 				Units struct {
 					USD []struct {
 						Val   json.Number `json:"val"`
 						FP    string      `json:"fp"`
+						Form  string      `json:"form"`
 						Frame string      `json:"frame"`
 					} `json:"USD"`
 				} `json:"units"`
@@ -50,7 +52,7 @@ type Facts struct {
 						Frame string      `json:"frame"`
 					} `json:"USD"`
 				} `json:"units"`
-			} `json:"NetCashProvidedByUsedInOperatingActivites"`
+			} `json:"NetCashProvidedByUsedInOperatingActivities"`
 
 			LongTermDebt struct {
 				Units struct {
@@ -188,8 +190,8 @@ type Facts struct {
 						Val   json.Number `json:"val"`
 						FP    string      `json:"fp"`
 						Frame string      `json:"frame"`
-					} `json:"USD"`
-				} `json:"shares"`
+					} `json:"shares"`
+				} `json:"units"`
 			} `json:"WeightedAverageNumberOfSharesOutstandingBasic"`
 
 			CommonStockDividendsPerShareDeclared struct {

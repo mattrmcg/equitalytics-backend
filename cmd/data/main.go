@@ -8,10 +8,12 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"reflect"
 	"strconv"
 	"time"
 
 	"github.com/buger/jsonparser"
+	"github.com/mattrmcg/equitalytics-backend/internal/models"
 )
 
 // Two approaches:
@@ -45,7 +47,7 @@ func main() {
 func seed() {
 
 	// var companies []models.CompanyInfo // for holding CompanyInfo objects before storing them in database
-	// var errors []error                 // for storing non-fatal errors, database will only be accessed if there are no stored errors
+	var errors []error // for storing non-fatal errors, database will only be accessed if there are no stored errors
 
 	// grab cik list json
 	rawData, err := fetchCIKList()
@@ -72,6 +74,7 @@ func seed() {
 			// the Facts data JSON don't contain important company information like SIC code, Exchanges, etc.
 			sub, err := getSubmissionsWithCIK(cikInt)
 			if err != nil {
+				errors = append(errors, err)
 				log.Println(err)
 			}
 
@@ -84,15 +87,23 @@ func seed() {
 
 				// Get Company Facts
 				/*facts*/
-				_, err := getFactsWithCIK(cikInt)
+				facts, err := getFactsWithCIK(cikInt)
 				if err != nil {
+					errors = append(errors, err)
 					log.Println(err)
 				}
+
+				// verifyFactsStruct returns a list of errors for each fact that isn't populated with data
+				verifyErrorsList := verifyFactsStruct(facts)
+				// append the returned list of errors to our previously declared errors list using a spread operator
+				errors = append(errors, verifyErrorsList...)
+
+				info := fillCompanyInfoStruct(cikInt, sub, facts)
 
 			}
 
 		}
-		time.Sleep(250 * time.Millisecond)
+		//time.Sleep(250 * time.Millisecond)
 	}
 
 	log.Println("Success! Database has been seeded via the SEC API's!")
@@ -197,7 +208,7 @@ func getSubmissionsWithCIK(cik int64) (*Submissions, error) {
 	// the SEC API has a rate limit of 10 requests per second
 	// the time.sleep ensures there is a wait period before each request to submissions
 	// this makes it impossible to go over rate limit
-	time.Sleep(110 * time.Millisecond)
+	time.Sleep(150 * time.Millisecond)
 	url := buildSubmissionsURL(cik)
 
 	req, err := http.NewRequest("GET", url, nil)
@@ -229,17 +240,14 @@ func getSubmissionsWithCIK(cik int64) (*Submissions, error) {
 
 // builds the url that is used to fetch submissions json
 func buildSubmissionsURL(cik int64) string {
-	cikStr := strconv.FormatInt(cik, 10)
-	for len(cikStr) < 10 {
-		cikStr = fmt.Sprint("0", cikStr)
-	}
+	cikStr := convertCIKToURLString(cik)
 
 	url := fmt.Sprint("https://data.sec.gov/submissions/CIK", cikStr, ".json")
 	return url
 }
 
 func getFactsWithCIK(cik int64) (*Facts, error) {
-	time.Sleep(110 * time.Millisecond)
+	time.Sleep(150 * time.Millisecond)
 
 	url := buildFactsURL(cik)
 
@@ -271,16 +279,216 @@ func getFactsWithCIK(cik int64) (*Facts, error) {
 }
 
 func buildFactsURL(cik int64) string {
-	cikStr := strconv.FormatInt(cik, 10)
-	for len(cikStr) < 10 {
-		cikStr = fmt.Sprint("0", cikStr)
-	}
+	cikStr := convertCIKToURLString(cik)
 
 	url := fmt.Sprint("https://data.sec.gov/api/xbrl/companyfacts/CIK", cikStr, ".json")
 	return url
 }
 
+// converts a cik integer to a string suitable for use in retrieval URLs
+func convertCIKToURLString(cik int64) string {
+	cikStr := strconv.FormatInt(cik, 10)
+	for len(cikStr) < 10 {
+		cikStr = fmt.Sprint("0", cikStr)
+	}
+
+	return cikStr
+}
+
+// This function verifies that each Fact retrieved actually contains data
+// For each Fact that doesn't have its respective data, an error will be added to an error slice and logged.
+// The error slice is returned so that it can be appended to the error slice in the seed function.
+func verifyFactsStruct(facts *Facts) []error {
+	var errList []error
+
+	// We check that the length of the unit type struct array is not equal to 0 in order to verify that it's populated with data
+	length := len(facts.Facts.USGAAP.NetIncomeLoss.Units.USD)
+	if length == 0 {
+		err := fmt.Errorf("NetIncomeLoss data not present: %v", facts.EntityName)
+		errList = append(errList, err)
+		log.Println(err)
+	}
+
+	length = len(facts.Facts.USGAAP.Assets.Units.USD)
+	if length == 0 {
+		err := fmt.Errorf("Assets data not present: %v", facts.EntityName)
+		errList = append(errList, err)
+		log.Println(err)
+	}
+
+	length = len(facts.Facts.USGAAP.NetCashProvidedByUsedInOperatingActivities.Units.USD)
+	if length == 0 {
+		err := fmt.Errorf("NetCashProvidedByUsedInOperatingActivities data not present: %v", facts.EntityName)
+		errList = append(errList, err)
+		log.Println(err)
+	}
+
+	length = len(facts.Facts.USGAAP.LongTermDebt.Units.USD)
+	if length == 0 {
+		err := fmt.Errorf("LongTermDebt data not present: %v", facts.EntityName)
+		errList = append(errList, err)
+		log.Println(err)
+	}
+
+	length = len(facts.Facts.USGAAP.AssetsCurrent.Units.USD)
+	if length == 0 {
+		err := fmt.Errorf("AssetsCurrent data not present: %v", facts.EntityName)
+		errList = append(errList, err)
+		log.Println(err)
+	}
+
+	length = len(facts.Facts.USGAAP.LiabilitiesCurrent.Units.USD)
+	if length == 0 {
+		err := fmt.Errorf("LiabiltiesCurrent data not present: %v", facts.EntityName)
+		errList = append(errList, err)
+		log.Println(err)
+	}
+
+	length = len(facts.Facts.USGAAP.CommonStockSharesIssued.Units.Shares)
+	if length == 0 {
+		err := fmt.Errorf("CommonStockSharesIssued data not present: %v", facts.EntityName)
+		errList = append(errList, err)
+		log.Println(err)
+	}
+
+	length = len(facts.Facts.USGAAP.Revenues.Units.USD)
+	if length == 0 {
+		err := fmt.Errorf("Revenues data not present: %v", facts.EntityName)
+		errList = append(errList, err)
+		log.Println(err)
+	}
+
+	length = len(facts.Facts.USGAAP.CostOfGoodsSold.Units.USD)
+	if length == 0 {
+		err := fmt.Errorf("CostOfGoodsSold data not present: %v", facts.EntityName)
+		errList = append(errList, err)
+		log.Println(err)
+	}
+
+	length = len(facts.Facts.USGAAP.OperatingIncomeLoss.Units.USD)
+	if length == 0 {
+		err := fmt.Errorf("OperatingIncomeLoss data not present: %v", facts.EntityName)
+		errList = append(errList, err)
+		log.Println(err)
+	}
+
+	length = len(facts.Facts.USGAAP.StockholdersEquity.Units.USD)
+	if length == 0 {
+		err := fmt.Errorf("StockholdersEquity data not present: %v", facts.EntityName)
+		errList = append(errList, err)
+		log.Println(err)
+	}
+
+	length = len(facts.Facts.USGAAP.CashAndCashEquivalentsAtCarryingValue.Units.USD)
+	if length == 0 {
+		err := fmt.Errorf("CashAndCashEquivalentsAtCarryingValue data not present: %v", facts.EntityName)
+		errList = append(errList, err)
+		log.Println(err)
+	}
+
+	length = len(facts.Facts.USGAAP.ShortTermInvestments.Units.USD)
+	if length == 0 {
+		err := fmt.Errorf("ShortTermInvestments data not present: %v", facts.EntityName)
+		errList = append(errList, err)
+		log.Println(err)
+	}
+
+	length = len(facts.Facts.USGAAP.AccountsReceivableNetCurrent.Units.USD)
+	if length == 0 {
+		err := fmt.Errorf("AccountsReceivableNetCurrent data not present: %v", facts.EntityName)
+		errList = append(errList, err)
+		log.Println(err)
+	}
+
+	length = len(facts.Facts.USGAAP.InterestExpense.Units.USD)
+	if length == 0 {
+		err := fmt.Errorf("InterestExpense data not present: %v", facts.EntityName)
+		errList = append(errList, err)
+		log.Println(err)
+	}
+
+	length = len(facts.Facts.USGAAP.EarningsPerShareBasic.Units.USDOverShares)
+	if length == 0 {
+		err := fmt.Errorf("EarningsPerShareBasic data not present: %v", facts.EntityName)
+		errList = append(errList, err)
+		log.Println(err)
+	}
+
+	length = len(facts.Facts.USGAAP.WeightedAverageNumberOfSharesOutstandingBasic.Units.Shares)
+	if length == 0 {
+		err := fmt.Errorf("NetCashProvidedByUsedInOperatingActivities data not present: %v", facts.EntityName)
+		errList = append(errList, err)
+		log.Println(err)
+	}
+
+	length = len(facts.Facts.USGAAP.GrossProfit.Units.USD)
+	if length == 0 {
+		err := fmt.Errorf("GrossProfit data not present: %v", facts.EntityName)
+		errList = append(errList, err)
+		log.Println(err)
+	}
+
+	return errList
+
+}
+
+// creates and populates a CompanyInfo struct with data from Facts and Submissions structs
+func fillCompanyInfoStruct(cik int64, sub *Submissions, factsStruct *Facts) *models.CompanyInfo {
+	sic, name, ticker, exchanges := sub.SIC, sub.Name, sub.Tickers[0], sub.Exchanges
+
+	facts := factsStruct.Facts.USGAAP // done to make retrieving data from Facts struct less verbose
+
+	assets := getAssets(facts)
+
+	return nil
+}
+
+func getAssets(facts *Facts) int64 {
+	return 0
+}
+
+func getLatestYearlyFilingValue(fact interface{}) (json.Number, error) {
+	v := reflect.ValueOf(fact)
+
+	if v.Kind() != reflect.Struct {
+		return json.Number(0), fmt.Errorf("Expected fact to be a struct")
+	}
+
+	// Access "Units" Field
+	unitsField := v.FieldByName("Units")
+	if !unitsField.IsValid() || unitsField.Kind() != reflect.Struct {
+		return json.Number(0), fmt.Errorf("Expected a units field of struct type")
+	}
+
+	var unitField reflect.Value
+	if (unitsField.FieldByName("USD")).IsValid() {
+		unitField = unitsField.FieldByName("USD")
+	} else if (unitsField.FieldByName("Shares")).IsValid() {
+		unitField = unitsField.FieldByName("Shares")
+	} else if (unitsField.FieldByName("USDOverShares")).IsValid() {
+		unitField = unitsField.FieldByName("USDOverShares")
+	} else {
+		return json.Number(0), fmt.Errorf("Expected a unitField of USD, Shares, or USDOverShares")
+	}
+
+	if unitField.Kind() != reflect.Slice {
+		return json.Number(0), fmt.Errorf("Expected unitField to be of type slice")
+	}
+
+	return json.Number(0), nil
+}
+
+func convertJSONNumberToInt64(num json.Number) int64 {
+
+	return 0
+}
+
+func convertJSONNumberToFloat64(num json.Number) float64 {
+	return 0.0
+}
+
 // CURRENTLY NOT USING OPTION 2
+// Haven't figured out how to extract XBRL data from inlineXBRL, probably need an html parser to do so
 
 // 2) Use CIK list with Submissions JSON to download and parse xbrl filings
 // Option 2 is much harder and more time consuming, but ensures a higher degree of data integrity and information
