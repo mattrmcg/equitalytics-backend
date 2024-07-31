@@ -27,28 +27,30 @@ type CompanyInfo struct {
 	SIC         int64 // possible make this a foreign key
 	CompanyName string
 	Ticker      string
-	Exchanges   []struct {
-		Exchange string
-	}
+	Exchanges   []string
 
 	// Auxiliary
-	Assets                                   int64   `json:"assets"`
-	Liabilities                              int64   `json:"liabilities"`
-	Revenues                                 int64   `json:"revenues"`
-	CostOfGoodsSold                          int64   `json:"costOfGoodsSold"`
-	GrossProfit                              int64   `json:"grossProfit"`
-	OperatingIncomeLoss                      int64   `json:"operatingIncomeLoss"`
-	StockholdersEquity                       int64   `json:"stockholdersEquity"`
-	PreviousYearStockholdersEquity           int64   `json:"previousYearStockholdersEquity"`
-	CashAndCashEquivalents                   int64   `json:"cashAndCashEquivalents"`                   // For QuickRatio
-	ShortTermInvestments                     int64   `json:"shortTermInvestments"`                     // For QuickRatio
-	AccountsReceivableNetCurrent             int64   `json:"accountsReceivableNetCurrent"`             // ForQuickRatio
-	PreviousYearAccountsReceivableNetCurrent int64   `json:"previousYearAccountsReceivableNetCurrent"` // For Receivables Turnover Ratio
-	InterestExpense                          int64   `json:"interestExpense"`                          // For InterestCoverageRatio
-	InventoryNet                             int64   `json:"inventoryNet"`                             // For InventoryTurnoverRatio
-	PreviousYearInventoryNet                 int64   `json:"previousYearInventoryNet"`                 // For InventoryTurnoverRatio
+	Assets                                   int64 `json:"assets"`
+	Liabilities                              int64 `json:"liabilities"`
+	Revenues                                 int64 `json:"revenues"`
+	PreviousYearRevenues                     int64 `json:"previousYearRevenues"`
+	CostOfGoodsSold                          int64 `json:"costOfGoodsSold"`
+	GrossProfit                              int64 `json:"grossProfit"`
+	PreviousYearGrossProfit                  int64 `json:"previousYearGrossProfit"`
+	OperatingIncomeLoss                      int64 `json:"operatingIncomeLoss"`
+	StockholdersEquity                       int64 `json:"stockholdersEquity"`
+	PreviousYearStockholdersEquity           int64 `json:"previousYearStockholdersEquity"`
+	CashAndCashEquivalents                   int64 `json:"cashAndCashEquivalents"`                   // For QuickRatio
+	ShortTermInvestments                     int64 `json:"shortTermInvestments"`                     // For QuickRatio
+	AccountsReceivableNetCurrent             int64 `json:"accountsReceivableNetCurrent"`             // ForQuickRatio
+	PreviousYearAccountsReceivableNetCurrent int64 `json:"previousYearAccountsReceivableNetCurrent"` // For Receivables Turnover Ratio
+	InterestExpense                          int64 `json:"interestExpense"`                          // For InterestCoverageRatio
+
+	// InventoryNet not present at some companies - may remove and not display InventoryTurnoverRatio
+	// InventoryNet                             int64   `json:"inventoryNet"`                             // For InventoryTurnoverRatio
+	// PreviousYearInventoryNet                 int64   `json:"previousYearInventoryNet"`                 // For InventoryTurnoverRatio
 	WeightedAverageNumberOfSharesOutstanding int64   `json:"weightedAverageNumberOfSharesOutstanding"` // For PriceToBookRatio
-	BookValuePerShare                        int64   `json:"bookValuePerShare"`                        // For PriceToBookRatio
+	BookValuePerShare                        float64 `json:"bookValuePerShare"`                        // For PriceToBookRatio
 	RevenuePerShare                          float64 `json:"revenuePerShare"`                          // For PriceToSalesRatio
 	CommonStockDividendsPerShareDeclared     float64 `json:"commonStockDividensPerShareDeclared"`      // For DividendYield (Might not be reported)
 
@@ -89,10 +91,10 @@ type CompanyInfo struct {
 	IsCurrentCRGreaterThanPreviousCR bool    `json:"isCurrentCRGreaterThanPreviousCR"`
 
 	// POINT 7
-	CommonStockShareIssued             int64 `json:"commonStockShareIssued"`
-	PreviousYearCommonStockShareIssued int64 `json:"previousYearCommonStockShareIssued"`
-	SharesIssuedInTheLastYear          int64 `json:"sharesIssuedInTheLastYear"`
-	NoNewSharesIssued                  bool  `json:"noNewSharesIssued"`
+	CommonStockSharesIssued             int64 `json:"commonStockShareIssued"`
+	PreviousYearCommonStockSharesIssued int64 `json:"previousYearCommonStockShareIssued"`
+	SharesIssuedInTheLastYear           int64 `json:"sharesIssuedInTheLastYear"`
+	NoNewSharesIssued                   bool  `json:"noNewSharesIssued"`
 
 	// POINT 8
 	GrossProfitMargin                float64 `json:"grossProfitMargin"`

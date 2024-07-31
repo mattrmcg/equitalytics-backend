@@ -18,6 +18,13 @@ type Submissions struct {
 	Category       string   `json:"category"`
 }
 
+type FactUnit struct {
+	Val   json.Number `json:"val"`
+	FP    string      `json:"fp"`
+	Form  string      `json:"form"`
+	Frame string      `json:"frame"`
+}
+
 // struct for unmarshalling Facts data JSON
 type Facts struct {
 	EntityName string `json:"entityName"`
@@ -25,182 +32,116 @@ type Facts struct {
 		USGAAP struct {
 			NetIncomeLoss struct {
 				Units struct {
-					USD []struct {
-						Val   json.Number `json:"val"`
-						FP    string      `json:"fp"`
-						Form  string      `json:"form"`
-						Frame string      `json:"frame"`
-					} `json:"USD"`
+					USD []FactUnit `json:"USD"`
 				} `json:"units"`
 			} `json:"NetIncomeLoss"`
 
 			Assets struct {
 				Units struct {
-					USD []struct {
-						Val   json.Number `json:"val"`
-						FP    string      `json:"fp"`
-						Frame string      `json:"frame"`
-					} `json:"USD"`
+					USD []FactUnit `json:"USD"`
 				} `json:"units"`
 			} `json:"Assets"`
 
+			Liabilities struct {
+				Units struct {
+					USD []FactUnit `json:"USD"`
+				} `json:"units"`
+			} `json:"Liabilities"`
+
 			NetCashProvidedByUsedInOperatingActivities struct {
 				Units struct {
-					USD []struct {
-						Val   json.Number `json:"val"`
-						FP    string      `json:"fp"`
-						Frame string      `json:"frame"`
-					} `json:"USD"`
+					USD []FactUnit `json:"USD"`
 				} `json:"units"`
 			} `json:"NetCashProvidedByUsedInOperatingActivities"`
 
 			LongTermDebt struct {
 				Units struct {
-					USD []struct {
-						Val   json.Number `json:"val"`
-						FP    string      `json:"fp"`
-						Frame string      `json:"frame"`
-					} `json:"USD"`
+					USD []FactUnit `json:"USD"`
 				} `json:"units"`
 			} `json:"LongTermDebt"`
 
 			AssetsCurrent struct {
 				Units struct {
-					USD []struct {
-						Val   json.Number `json:"val"`
-						FP    string      `json:"fp"`
-						Frame string      `json:"frame"`
-					} `json:"USD"`
+					USD []FactUnit `json:"USD"`
 				} `json:"units"`
 			} `json:"AssetsCurrent"`
 
 			LiabilitiesCurrent struct {
 				Units struct {
-					USD []struct {
-						Val   json.Number `json:"val"`
-						FP    string      `json:"fp"`
-						Frame string      `json:"frame"`
-					} `json:"USD"`
+					USD []FactUnit `json:"USD"`
 				} `json:"units"`
 			} `json:"LiabilitiesCurrent"`
 
 			CommonStockSharesIssued struct {
 				Units struct {
-					Shares []struct {
-						Val   json.Number `json:"val"`
-						FP    string      `json:"fp"`
-						Frame string      `json:"frame"`
-					} `json:"shares"`
+					Shares []FactUnit `json:"shares"`
 				} `json:"units"`
 			} `json:"CommonStockSharesIssued"`
 
 			Revenues struct {
 				Units struct {
-					USD []struct {
-						Val   json.Number `json:"val"`
-						FP    string      `json:"fp"`
-						Frame string      `json:"frame"`
-					} `json:"USD"`
+					USD []FactUnit `json:"USD"`
 				} `json:"units"`
 			} `json:"Revenues"`
 
 			CostOfGoodsSold struct {
 				Units struct {
-					USD []struct {
-						Val   json.Number `json:"val"`
-						FP    string      `json:"fp"`
-						Frame string      `json:"frame"`
-					} `json:"USD"`
+					USD []FactUnit `json:"USD"`
 				} `json:"units"`
 			} `json:"CostOfGoodsSold"`
 
 			OperatingIncomeLoss struct {
 				Units struct {
-					USD []struct {
-						Val   json.Number `json:"val"`
-						FP    string      `json:"fp"`
-						Frame string      `json:"frame"`
-					} `json:"USD"`
+					USD []FactUnit `json:"USD"`
 				} `json:"units"`
 			} `json:"OperatingIncomeLoss"`
 
 			StockholdersEquity struct {
 				Units struct {
-					USD []struct {
-						Val   json.Number `json:"val"`
-						FP    string      `json:"fp"`
-						Frame string      `json:"frame"`
-					} `json:"USD"`
+					USD []FactUnit `json:"USD"`
 				} `json:"units"`
 			} `json:"StockholdersEquity"`
 
 			CashAndCashEquivalentsAtCarryingValue struct {
 				Units struct {
-					USD []struct {
-						Val   json.Number `json:"val"`
-						FP    string      `json:"fp"`
-						Frame string      `json:"frame"`
-					} `json:"USD"`
+					USD []FactUnit `json:"USD"`
 				} `json:"units"`
 			} `json:"CashAndCashEquivalentsAtCarryingValue"`
 
 			ShortTermInvestments struct {
 				Units struct {
-					USD []struct {
-						Val   json.Number `json:"val"`
-						FP    string      `json:"fp"`
-						Frame string      `json:"frame"`
-					} `json:"USD"`
+					USD []FactUnit `json:"USD"`
 				} `json:"units"`
 			} `json:"ShortTermInvestments"`
 
 			AccountsReceivableNetCurrent struct {
 				Units struct {
-					USD []struct {
-						Val   json.Number `json:"val"`
-						FP    string      `json:"fp"`
-						Frame string      `json:"frame"`
-					} `json:"USD"`
+					USD []FactUnit `json:"USD"`
 				} `json:"units"`
 			} `json:"AccountsReceivableNetCurrent"`
 
 			InterestExpense struct {
 				Units struct {
-					USD []struct {
-						Val   json.Number `json:"val"`
-						FP    string      `json:"fp"`
-						Frame string      `json:"frame"`
-					} `json:"USD"`
+					USD []FactUnit `json:"USD"`
 				} `json:"units"`
 			} `json:"InterestExpense"`
 
 			EarningsPerShareBasic struct {
 				Units struct {
-					USDOverShares []struct {
-						Val   json.Number `json:"val"`
-						FP    string      `json:"fp"`
-						Frame string      `json:"frame"`
-					} `json:"USD/shares"`
+					USDOverShares []FactUnit `json:"USD/shares"`
 				} `json:"units"`
 			} `json:"EarningsPerShareBasic"`
 
 			WeightedAverageNumberOfSharesOutstandingBasic struct {
 				Units struct {
-					Shares []struct {
-						Val   json.Number `json:"val"`
-						FP    string      `json:"fp"`
-						Frame string      `json:"frame"`
-					} `json:"shares"`
+					Shares []FactUnit `json:"shares"`
 				} `json:"units"`
 			} `json:"WeightedAverageNumberOfSharesOutstandingBasic"`
 
+			// MIGHT NOT EXIST
 			CommonStockDividendsPerShareDeclared struct {
 				Units struct {
-					USDOverShares []struct {
-						Val   json.Number `json:"val"`
-						FP    string      `json:"fp"`
-						Frame string      `json:"frame"`
-					} `json:"USD/shares"`
+					USDOverShares []FactUnit `json:"USD/shares"`
 				} `json:"units"`
 			} `json:"CommonStockDividendsPerShareDeclared"`
 
@@ -208,11 +149,7 @@ type Facts struct {
 				Label       string `json:"label"`
 				Description string `json:"description"`
 				Units       struct {
-					USD []struct {
-						Val   json.Number `json:"val"`
-						FP    string      `json:"fp"`
-						Frame string      `json:"frame"`
-					} `json:"USD"`
+					USD []FactUnit `json:"USD"`
 				} `json:"units"`
 			} `json:"GrossProfit"`
 		} `json:"us-gaap"`
