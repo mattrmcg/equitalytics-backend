@@ -9,7 +9,7 @@ type CIKList struct {
 
 // struct for unmarshalling Submissions data JSON
 type Submissions struct {
-	SIC            int64    `json:"sic"` // COULD CAUSE ERROR
+	SIC            string   `json:"sic"` // COULD CAUSE ERROR
 	SICDescription string   `json:"sicDescription"`
 	Name           string   `json:"name"`
 	Tickers        []string `json:"tickers"`

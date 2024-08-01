@@ -100,7 +100,11 @@ func seed() {
 				// append the returned list of errors to our previously declared errors list using a spread operator
 				errors = append(errors, verifyErrorsList...)
 
-				info := fillCompanyInfoStruct(cikInt, sub, facts)
+				info, err := fillCompanyInfoStruct(cikInt, sub, facts)
+				// CHANGE
+				if err != nil {
+					log.Fatal(err)
+				}
 				fmt.Println(info, errors) // REMOVE THIS LINE
 
 			}
@@ -440,7 +444,12 @@ func fillCompanyInfoStruct(cik int64, sub *Submissions, facts *Facts) (*models.C
 	// slice for collecting errors to be returned at the end
 	var errors []error
 
-	sic, name, ticker, exchanges := sub.SIC, sub.Name, sub.Tickers[0], sub.Exchanges
+	sic, err := strconv.ParseInt(sub.SIC, 10, 64)
+	if err != nil {
+		log.Println(err)
+		errors = append(errors, err)
+	}
+	name, ticker, exchanges := sub.Name, sub.Tickers[0], sub.Exchanges
 
 	// We need the three most recent yearly assets values later on for the Asset Turnover Ratio
 	// However, we are only storing the latestAssets value in our CompanyInfo struct
@@ -778,6 +787,9 @@ func fillCompanyInfoStruct(cik int64, sub *Submissions, facts *Facts) (*models.C
 		PriceToSalesRatio:    priceToSalesRatio,
 		DividendYield:        dividendYield,
 		EarningsPerShare:     earningsPerShare,
+
+		// TIMESTAMPS
+		FilingDataUpdatedAt: time.Now(),
 	}
 
 	if len(errors) > 0 {
@@ -1208,22 +1220,25 @@ func getCurrentAndPreviousGrossProfit(facts *Facts) (int64, int64, error) {
 	startingIndex := len(facts.Facts.USGAAP.GrossProfit.Units.USD) - 1
 	grossProfitIndex, err := getNextYearlyFilingValueIndex(facts.Facts.USGAAP.GrossProfit, startingIndex)
 	if err != nil {
-		return 0, 0, fmt.Errorf("getGrossProfit() returned an error: %v", err)
+		return 0, 0, fmt.Errorf("getCurrentAndPreviousGrossProfit() returned an error: %v", err)
 	}
 
 	previousGrossProfitIndex, err := getNextYearlyFilingValueIndex(facts.Facts.USGAAP.GrossProfit, grossProfitIndex-1)
+	if err != nil {
+		return 0, 0, fmt.Errorf("getCurrentAndPreviousGrossProfit() returned an error %v", err)
+	}
 
 	grossProfitValue := facts.Facts.USGAAP.GrossProfit.Units.USD[grossProfitIndex].Val
 	previousGrossProfitValue := facts.Facts.USGAAP.GrossProfit.Units.USD[previousGrossProfitIndex].Val
 
 	intVal, err := convertJSONNumberToInt64(grossProfitValue)
 	if err != nil {
-		return 0, 0, fmt.Errorf("getGrossProfit(): couldn't convert to int64: %v", err)
+		return 0, 0, fmt.Errorf("getCurrentAndPreviousGrossProfit(): couldn't convert to int64: %v", err)
 	}
 
 	previousIntVal, err := convertJSONNumberToInt64(previousGrossProfitValue)
 	if err != nil {
-		return 0, 0, fmt.Errorf("getGrossProfit(): couldn't convert to int64: %v", err)
+		return 0, 0, fmt.Errorf("getCurrentAndPreviousGrossProfit(): couldn't convert to int64: %v", err)
 	}
 
 	return intVal, previousIntVal, nil
@@ -1262,9 +1277,9 @@ func calcRevenuePerShare(revenues int64, weightedAverageNumberOfSharesOutstandin
 	return float64(revenues) / float64(weightedAverageNumberOfSharesOutstanding)
 }
 
-func calculatePiotroskiScore() {
+// func calculatePiotroskiScore() {
 
-}
+// }
 
 // Calculate the first 4 points of the piotroski score
 // 1 - positive net income
@@ -1399,11 +1414,7 @@ func checkIfCommonStockDividendsPerShareDeclaredExists(fact struct {
 	} "json:\"units\""
 }) bool {
 
-	if len(fact.Units.USDOverShares) == 0 {
-		return false
-	}
-
-	return true
+	return len(fact.Units.USDOverShares) != 0
 }
 
 func getNextYearlyFilingValueIndex(fact interface{}, startIndex int) (int, error) {
