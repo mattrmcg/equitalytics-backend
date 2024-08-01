@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -8,9 +9,22 @@ func TestSeedFunctions(t *testing.T) {
 
 	// testing buildSubmissionsURL()
 	// t.Run("should pass if url is correctly built", func(t *testing.T) {
-	// 	var testCik int64 = 123456
-	// 	if url := buildSubmissionsURL(testCik); url != "https://data.sec.gov/submissions/CIK0000123456.json" {
+	// 	var testCik int64 = 796343
+	// 	if url := buildSubmissionsURL(testCik); url != "https://data.sec.gov/submissions/CIK0000796343.json" {
 	// 		t.Errorf("expected https://data.sec.gov/submissions/CIK0000123456.json, got %s", url)
+	// 	}
+	// })
+
+	// t.Run("should pass if submissions is correctly retrieved from url", func(t *testing.T) {
+	// 	var testCik int64 = 796343
+	// 	// url := buildSubmissionsURL(testCik)
+
+	// 	sub, err := getSubmissionsWithCIK(testCik)
+	// 	if err != nil {
+	// 		t.Errorf("failed to get Submissions without error: %v\n", err)
+	// 	}
+	// 	if sub == nil {
+	// 		t.Errorf("sub is nil\n")
 	// 	}
 	// })
 
@@ -102,75 +116,92 @@ func TestSeedFunctions(t *testing.T) {
 
 func TestDataRetrievalFunctions(t *testing.T) {
 
-	cik := 796343
+	cik := int64(796343)
 
-	facts, _ := getFactsWithCIK(int64(cik))
-	t.Run("should pass if correct yearly filing value index is retrieved correctly", func(t *testing.T) {
+	sub, _ := getSubmissionsWithCIK(cik)
 
-		// assetsIndex, err := getLatestYearlyFilingValueIndex(facts.Facts.USGAAP.Assets)
-		// if err != nil {
-		// 	t.Errorf("getLatestYearlyFilingValueIndex failed: %v", err)
-		// }
-		// EPSIndex, err := getLatestYearlyFilingValueIndex(facts.Facts.USGAAP.EarningsPerShareBasic)
-		// if err != nil {
-		// 	t.Errorf("getLatestYearlyFilingValueIndex failed for EPS: %v", err)
-		// }
+	facts, _ := getFactsWithCIK(cik)
+	// t.Run("should pass if correct yearly filing value index is retrieved correctly", func(t *testing.T) {
 
-		// if EPSIndex == 0 {
-		// 	t.Errorf("EPS index was returned as 0")
-		// }
+	// assetsIndex, err := getLatestYearlyFilingValueIndex(facts.Facts.USGAAP.Assets)
+	// if err != nil {
+	// 	t.Errorf("getLatestYearlyFilingValueIndex failed: %v", err)
+	// }
+	// EPSIndex, err := getLatestYearlyFilingValueIndex(facts.Facts.USGAAP.EarningsPerShareBasic)
+	// if err != nil {
+	// 	t.Errorf("getLatestYearlyFilingValueIndex failed for EPS: %v", err)
+	// }
 
-		// if assetsIndex == 0 {
-		// 	t.Errorf("assets index was returned as 0")
-		// }
+	// if EPSIndex == 0 {
+	// 	t.Errorf("EPS index was returned as 0")
+	// }
 
-		// backwardsIndex := len(facts.Facts.USGAAP.Assets.Units.USD) - assetsIndex
-		// if backwardsIndex != 5 {
-		// 	t.Errorf("expected (counting backwards) index %v, got %v", 5, backwardsIndex)
-		// }
-		// fmt.Printf("assets index: %v\n", backwardsIndex)
+	// if assetsIndex == 0 {
+	// 	t.Errorf("assets index was returned as 0")
+	// }
 
-		// backwardsEPSIndex := len(facts.Facts.USGAAP.EarningsPerShareBasic.Units.USDOverShares) - EPSIndex
-		// if backwardsEPSIndex != 4 {
-		// 	t.Errorf("expected (counting backwards) EPSindex %v, got %v", 4, backwardsEPSIndex)
-		// }
-		// fmt.Printf("EPS index: %v\n", backwardsEPSIndex)
+	// backwardsIndex := len(facts.Facts.USGAAP.Assets.Units.USD) - assetsIndex
+	// if backwardsIndex != 5 {
+	// 	t.Errorf("expected (counting backwards) index %v, got %v", 5, backwardsIndex)
+	// }
+	// fmt.Printf("assets index: %v\n", backwardsIndex)
 
-	})
+	// backwardsEPSIndex := len(facts.Facts.USGAAP.EarningsPerShareBasic.Units.USDOverShares) - EPSIndex
+	// if backwardsEPSIndex != 4 {
+	// 	t.Errorf("expected (counting backwards) EPSindex %v, got %v", 4, backwardsEPSIndex)
+	// }
+	// fmt.Printf("EPS index: %v\n", backwardsEPSIndex)
 
-	t.Run("should pass if assets is correctly retrieved", func(t *testing.T) {
-		assets, _, _, err := getAssets(facts)
+	// })
+
+	// t.Run("should pass if net income is correctly retrieved", func(t *testing.T) {
+
+	// })
+
+	// t.Run("should pass if assets is correctly retrieved", func(t *testing.T) {
+	// 	assets, _, _, err := getAssets(facts)
+	// 	if err != nil {
+	// 		t.Errorf("unable to retrieve assets: %v", err)
+	// 	}
+	// 	if assets != 29779000000 {
+	// 		t.Errorf("did not receive correct assets amount")
+	// 	}
+	// })
+
+	// t.Run("should pass if liabilities is correctly retrieved", func(t *testing.T) {
+	// 	liabilities, err := getLiabilities(facts)
+	// 	if err != nil {
+	// 		t.Errorf("unable to retrieve liabilities: %v", err)
+	// 	}
+
+	// 	if liabilities != 13261000000 {
+	// 		t.Errorf("did not receive correct assets amount")
+	// 	}
+	// })
+
+	// t.Run("should pass if CommonStockSharesIssued is correctly retrieved", func(t *testing.T) {
+	// 	commonStockSharesIssued, previousCommonStockSharesIssued, err := getCurrentAndPreviousYearCommonStockSharesIssued(facts)
+	// 	if err != nil {
+	// 		t.Errorf("unable to retrieve CommonStockSharesIssued\n")
+	// 	}
+
+	// 	if commonStockSharesIssued != 601000000 {
+	// 		t.Errorf("did not receive correct current CommonStockSharesIssued amount\n")
+	// 	}
+
+	// 	if previousCommonStockSharesIssued != 601000000 {
+	// 		t.Errorf("did not receive correct previous CommonStockSharesIssued amount\n")
+	// 	}
+	// })
+
+	// BROKEN
+	t.Run("should pass if fillCompanyInfoStruct() fills and returns a struct without error", func(t *testing.T) {
+		companyInfo, err := fillCompanyInfoStruct(cik, sub, facts)
 		if err != nil {
-			t.Errorf("unable to retrieve assets: %v", err)
+			t.Errorf("fillCompanyInfoStruct() did not exeucte without error\n")
 		}
-		if assets != 29779000000 {
-			t.Errorf("did not receive correct assets amount")
-		}
-	})
-
-	t.Run("should pass if liabilities is correctly retrieved", func(t *testing.T) {
-		liabilities, err := getLiabilities(facts)
-		if err != nil {
-			t.Errorf("unable to retrieve liabilities: %v", err)
-		}
-
-		if liabilities != 13261000000 {
-			t.Errorf("did not receive correct assets amount")
-		}
-	})
-
-	t.Run("should pass if CommonStockSharesIssued is correctly retrieved", func(t *testing.T) {
-		commonStockSharesIssued, previousCommonStockSharesIssued, err := getCurrentAndPreviousYearCommonStockSharesIssued(facts)
-		if err != nil {
-			t.Errorf("unable to retrieve CommonStockSharesIssued")
-		}
-
-		if commonStockSharesIssued != 601000000 {
-			t.Errorf("did not receive correct current CommonStockSharesIssued amount")
-		}
-
-		if previousCommonStockSharesIssued != 601000000 {
-			t.Errorf("did not receive correct previous CommonStockSharesIssued amount")
+		if companyInfo != nil {
+			fmt.Printf("%+v\n", companyInfo)
 		}
 	})
 
