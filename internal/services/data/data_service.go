@@ -176,8 +176,11 @@ func (ds *DataService) RetrieveCompanyMarketData(ctx context.Context) ([]models.
 }
 
 func (ds *DataService) UpdateMarketPriceFacts(ctx context.Context, cik string, marketPrice float64, priceToEarningsRatio float64, priceToBookRatio float64, priceToSalesRatio float64) error {
-	query := `UPDATE company_info SET market_price_per_share = $1, price_to_earnings_ratio = $2, price_to_book_ratio = $3, price_to_sales_ratio = $4, market_data_updated_at = $5 WHERE cik = $6`
-	_, err := ds.db.Exec(ctx, query, marketPrice, priceToEarningsRatio, priceToBookRatio, priceToSalesRatio, time.Now(), cik)
+	query := `UPDATE company_info SET market_price_per_share = $1, price_to_earnings_ratio = $2, price_to_book_ratio = $3, price_to_sales_ratio = $4, market_dividend_yield = $5, market_data_updated_at = $6 WHERE cik = $7`
+
+	// NOTE: market_dividend_yield is updated to be 0.0
+	// This is a temporary fix until I can figure out a way to pull live dividend yield statistics
+	_, err := ds.db.Exec(ctx, query, marketPrice, priceToEarningsRatio, priceToBookRatio, priceToSalesRatio, float64(0.0), time.Now(), cik)
 	if err != nil {
 		return fmt.Errorf("failed to update market price: %v", err)
 	}
