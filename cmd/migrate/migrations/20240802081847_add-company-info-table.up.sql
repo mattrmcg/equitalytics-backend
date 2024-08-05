@@ -86,7 +86,7 @@ CREATE TABLE IF NOT EXISTS company_info (
     earnings_per_share DOUBLE PRECISION,
 
     market_price_per_share DOUBLE PRECISION,
-    market_dividend_yield DOUBLE PRECISION,
+    market_dividend_yield DOUBLE PRECISION DEFAULT 0.0,
 
     market_data_updated_at TIMESTAMPTZ,
     filing_data_updated_at TIMESTAMPTZ
