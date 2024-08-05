@@ -1,6 +1,8 @@
 package info
 
 import (
+	"context"
+
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/mattrmcg/equitalytics-backend/internal/models"
 )
@@ -17,7 +19,7 @@ func (infoService *InfoService) GetInfoByCIK(cik string) (*models.CompanyInfo, e
 	return nil, nil
 }
 
-func (infoService *InfoService) GetInfoByTicker(ticker string) (*models.CompanyInfo, error) {
+func (infoService *InfoService) GetInfoByTicker(ctx context.Context, ticker string) (*models.CompanyInfo, error) {
 
 	return nil, nil
 }

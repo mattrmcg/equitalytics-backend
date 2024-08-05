@@ -19,7 +19,9 @@ func NewInfoHandler(service models.InfoService) *InfoHandler {
 func (h *InfoHandler) RegisterRoutes(r chi.Router) {
 	// TODO: Add routes to router
 	r.Get("/ping", h.handlePing) // Auxiliary ping route
-	// r.Get("/companyinfo/{ticker}", getCompanyInfo())
+
+	// Route to grab info about given ticker
+	r.Get("/info/{ticker}", h.handleGetInfo)
 
 }
 
@@ -29,4 +31,18 @@ func (h *InfoHandler) handlePing(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, http.StatusOK, map[string]any{
 		"message": "Pong!",
 	})
+}
+
+func (h *InfoHandler) handleGetInfo(w http.ResponseWriter, r *http.Request) {
+	info, err := h.service.GetInfoByTicker(r.Context(), chi.URLParam(r, "ticker")) // NEED TO FIX
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	err = utils.WriteJSON(w, http.StatusOK, info)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
 }

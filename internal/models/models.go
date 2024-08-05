@@ -1,6 +1,9 @@
 package models
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 type UserService interface {
 	GetUserByEmail(email string) (*User, error)
@@ -10,7 +13,7 @@ type UserService interface {
 
 type InfoService interface {
 	GetInfoByCIK(cik string) (*CompanyInfo, error)
-	GetInfoByTicker(ticker string) (*CompanyInfo, error)
+	GetInfoByTicker(ctx context.Context, ticker string) (*CompanyInfo, error)
 }
 
 type User struct {
