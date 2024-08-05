@@ -9,7 +9,8 @@ type UserService interface {
 }
 
 type InfoService interface {
-	GetInfoByCIK(cik int) (*CompanyInfo, error)
+	GetInfoByCIK(cik string) (*CompanyInfo, error)
+	GetInfoByTicker(ticker string) (*CompanyInfo, error)
 }
 
 type User struct {
@@ -23,8 +24,8 @@ type User struct {
 
 // still need to figure out structure of CIK info table
 type CompanyInfo struct {
-	CIK         int64
-	SIC         int64 // possible make this a foreign key
+	CIK         string
+	SIC         string // possible make this a foreign key
 	CompanyName string
 	Ticker      string
 	Exchanges   []string
@@ -77,9 +78,9 @@ type CompanyInfo struct {
 	IsOCFGreaterThanNetIncome bool `json:"isOCFGreaterThanNetIncome"`
 
 	// POINT 5
-	LongTermDebt                       int64 `json:"longTermDebt"`
-	PreviousYearLongTermDebt           int64 `json:"previousYearLongTermDebt"`
-	IsCurrentLTDGreaterThanPreviousLTD bool  `json:"isCurrentLTDGreaterThanPreviousLTD"`
+	LongTermDebt                    int64 `json:"longTermDebt"`
+	PreviousYearLongTermDebt        int64 `json:"previousYearLongTermDebt"`
+	IsCurrentLTDLessThanPreviousLTD bool  `json:"isCurrentLTDGreaterThanPreviousLTD"`
 
 	// POINT 6
 	AssetsCurrent                    int64   `json:"assetsCurrent"`
@@ -124,7 +125,7 @@ type CompanyInfo struct {
 
 	// EFFICIENCY
 	// AssetTurnoverRatio - ALREADY DECLARED
-	InventoryTurnoverRatio   float64 `json:"inventoryTurnoverRatio"`
+	// InventoryTurnoverRatio   float64 `json:"inventoryTurnoverRatio"`
 	ReceivablesTurnoverRatio float64 `json:"receivablesTurnoverRatio"`
 
 	// VALUATION

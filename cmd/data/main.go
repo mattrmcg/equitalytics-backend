@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,7 +15,10 @@ import (
 	"time"
 
 	"github.com/buger/jsonparser"
+	"github.com/mattrmcg/equitalytics-backend/config"
+	"github.com/mattrmcg/equitalytics-backend/internal/db"
 	"github.com/mattrmcg/equitalytics-backend/internal/models"
+	"github.com/mattrmcg/equitalytics-backend/internal/services/data"
 )
 
 // Two approaches:
@@ -40,6 +44,10 @@ func main() {
 	cmd := os.Args[(len(os.Args) - 1)]
 	if cmd == "seed" {
 		seed()
+	} else if cmd == "update" {
+		update()
+	} else if cmd == "market" {
+		updateMarketPrice()
 	} else {
 		log.Fatal("unrecognized argument")
 	}
@@ -47,10 +55,29 @@ func main() {
 
 func seed() {
 
-	// var companies []models.CompanyInfo // for holding CompanyInfo objects before storing them in database
-	//companiesList := list.New()
-	var errors []error // for storing non-fatal errors, database will only be accessed if there are no stored errors
+	// Create db instance, pgxpool.Pool objects are concurrency safe (maybe not important here but needed for web app portion)
+	dbPool, err := db.CreateDBPool(config.Envs.DBURL)
+	if err != nil {
+		log.Fatal("Unable to create database pool")
+	}
 
+	// Test connection to db instance
+	err = dbPool.Ping(context.Background())
+	if err != nil {
+		log.Fatal("Unable to establish connection to database")
+	}
+	log.Println("Connection to database established, ready to seed")
+
+	// initialize data service, which contains the functions needed to add rows to the database
+	dataService := data.NewDataService(dbPool)
+
+	startTime := time.Now()
+
+	totalCounter := 0 // counts total large-accelerated-filers retrieved
+
+	// completeFactsCounter counts the amount of companies retrieved that have a complete set of needed facts
+	completeFactsCounter := 0
+	var completeCompanies []string
 	// grab cik list json
 	rawData, err := fetchCIKList()
 	if err != nil {
@@ -72,12 +99,14 @@ func seed() {
 				log.Fatal(err)
 			}
 
+			// IF CIK ALREADY PRESENT IN DATABASE --> CONTINUE TO NEXT ITERATION !!!!!!!!!!!!!!
+
 			// NOTE: The reason we fetch and unmarshal the submissions json is because both the CIK list JSON and
 			// the Facts data JSON don't contain important company information like SIC code, Exchanges, etc.
 			sub, err := getSubmissionsWithCIK(cikInt)
 			if err != nil {
-				errors = append(errors, err)
 				log.Println(err)
+				continue
 			}
 
 			// any CIK that isn't a large accelerated filer will be returned as nil
@@ -89,23 +118,57 @@ func seed() {
 
 				// Get Company Facts
 				/*facts*/
+				fmt.Printf("START: %v, %v\n", cikInt, sub.Tickers[0])
 				facts, err := getFactsWithCIK(cikInt)
 				if err != nil {
-					errors = append(errors, err)
 					log.Println(err)
+					continue
 				}
 
 				// verifyFactsStruct returns a list of errors for each fact that isn't populated with data
-				verifyErrorsList := verifyFactsStruct(facts)
-				// append the returned list of errors to our previously declared errors list using a spread operator
-				errors = append(errors, verifyErrorsList...)
+				verifyFactsStruct(facts)
 
 				info, err := fillCompanyInfoStruct(cikInt, sub, facts)
 				// CHANGE
 				if err != nil {
-					log.Fatal(err)
+					log.Printf("CIK%v, %v wasn't filled completely\n", cikInt, sub.Tickers[0])
+				} else {
+					log.Println("No errors in filling CompanyInfo!")
+					completeFactsCounter += 1
+					completeCompanies = append(completeCompanies, info.Ticker)
 				}
-				fmt.Println(info, errors) // REMOVE THIS LINE
+
+				exists, err := dataService.CheckIfCIKExists(context.Background(), info.CIK)
+				if err != nil {
+					log.Printf("error when checking exists: %v\n", err)
+					continue
+				}
+
+				if !exists {
+					err := dataService.AddCompanyInfoRow(context.Background(), info)
+					if err != nil {
+						log.Printf("unable to add to database: %v\n", err)
+						continue
+					}
+					log.Println("Successfully created new row in database!")
+				} else {
+					log.Println("Company already present in database")
+					// err := dataService.UpdateCompanyInfoRow(context.Background(), info)
+					// if err != nil {
+					// 	log.Printf("unable to update database: %v\n", err)
+					// 	continue
+					// }
+				}
+				// ADD CompanyInfo to database !!!!!!!!!!!
+				// err := data.CreateCompanyRow(db)
+				// if err != nil { // if CompanyInfo row is not created, then return an error
+				// 	log.Println("UNABLE TO CREATE NEW ROW")
+				// 	fmt.Printf("END: %v, %v\n\n", cikInt, sub.Tickers[0])
+				// 	continue
+				// }
+				// fmt.Println(info)
+				totalCounter += 1
+				fmt.Printf("END: %v, %v\n\n", cikInt, sub.Tickers[0])
 
 			}
 
@@ -114,6 +177,89 @@ func seed() {
 	}
 
 	log.Println("Success! Database has been seeded via the SEC API's!")
+	fmt.Printf("Total companies retrieved: %v \n", totalCounter)
+	fmt.Printf("Companies with complete data: %v\n", completeFactsCounter)
+	fmt.Println(completeCompanies)
+	fmt.Printf("Time elapsed: %v\n", time.Since(startTime))
+}
+
+// updates current ciks in database with newest information
+func update() {
+	// create pgxpool.Pool instance
+	dbPool, err := db.CreateDBPool(config.Envs.DBURL)
+	if err != nil {
+		log.Fatal("Unable to create database pool")
+	}
+
+	// Test connection to db instance
+	err = dbPool.Ping(context.Background())
+	if err != nil {
+		log.Fatal("Unable to establish connection to database")
+	}
+	log.Println("Connection to database established, ready to update")
+
+	// initialize data service, which contains the functions needed to add rows to the database
+	dataService := data.NewDataService(dbPool)
+
+	totalCounter := 0
+	startTime := time.Now()
+
+	// Pull all ciks from database into a string slice
+	cikSlice, err := dataService.RetrieveAllCIKs(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// For each cik
+	for _, cik := range cikSlice {
+		// fetch submissions
+		cikInt, err := strconv.ParseInt(cik, 10, 64)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+
+		sub, err := getSubmissionsWithCIK(cikInt)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+
+		fmt.Printf("\n")
+		log.Printf("START: CIK %v %v\n", cik, sub.Tickers[0])
+
+		facts, err := getFactsWithCIK(cikInt)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+
+		verifyFactsStruct(facts)
+
+		info, err := fillCompanyInfoStruct(cikInt, sub, facts)
+
+		if err != nil {
+			log.Printf("CIK%v, %v wasn't filled completely\n", cikInt, sub.Tickers[0])
+		} else {
+			log.Println("No errors in filling CompanyInfo!")
+		}
+
+		// Update CompanyInfo in database
+		err = dataService.UpdateCompanyInfoRow(context.Background(), info)
+		if err != nil {
+			log.Printf("UNABLE TO UPDATE DATABASE: %v\n", err)
+		}
+		totalCounter += 1
+
+		log.Printf("END: CIK %v %v\n", cik, sub.Tickers[0])
+		fmt.Printf("\n")
+
+	}
+
+	fmt.Println("Finished! Database has been updated")
+	fmt.Printf("Total companies updated: %v\n", totalCounter)
+	fmt.Printf("Time elapsed: %v\n", time.Since(startTime))
+
 }
 
 // fetch and return CIK List json
@@ -215,7 +361,7 @@ func getSubmissionsWithCIK(cik int64) (*Submissions, error) {
 	// the SEC API has a rate limit of 10 requests per second
 	// the time.sleep ensures there is a wait period before each request to submissions
 	// this makes it impossible to go over rate limit
-	time.Sleep(150 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 	url := buildSubmissionsURL(cik)
 
 	req, err := http.NewRequest("GET", url, nil)
@@ -254,7 +400,7 @@ func buildSubmissionsURL(cik int64) string {
 }
 
 func getFactsWithCIK(cik int64) (*Facts, error) {
-	time.Sleep(150 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 
 	url := buildFactsURL(cik)
 
@@ -305,7 +451,7 @@ func convertCIKToURLString(cik int64) string {
 // This function verifies that each Fact retrieved actually contains data
 // For each Fact that doesn't have its respective data, an error will be added to an error slice and logged.
 // The error slice is returned so that it can be appended to the error slice in the seed function.
-func verifyFactsStruct(facts *Facts) []error {
+func verifyFactsStruct(facts *Facts) error {
 	var errList []error
 
 	// We check that the length of the unit type struct array is not equal to 0 in order to verify that it's populated with data
@@ -435,7 +581,11 @@ func verifyFactsStruct(facts *Facts) []error {
 		log.Println(err)
 	}
 
-	return errList
+	if len(errList) != 0 {
+		return fmt.Errorf("not all facts are present")
+	}
+
+	return nil
 
 }
 
@@ -532,13 +682,16 @@ func fillCompanyInfoStruct(cik int64, sub *Submissions, facts *Facts) (*models.C
 	// We first need to check if commonStockDividendsPerShareDeclared is present in the Facts struct our data was unmarshalled into
 	var commonStockDividendsPerShareDeclared float64 = 0.0
 
+	// TODO: For some reason this is causing an index out of range error in getCommonStockDividendsPerShareDeclared() call to
+	// getNextYearlyFiling(). Needs to be fixed.
 	if checkIfCommonStockDividendsPerShareDeclaredExists(facts.Facts.USGAAP.CommonStockDividendsPerShareDeclared) {
 		// If it exists, we grab it from the Facts struct using its associated retrieval function
-		commonStockDividendsPerShareDeclared, err = getCommonStockDividendsPerShareDeclared(facts)
-		if err != nil {
-			log.Println(err)
-			errors = append(errors, err)
-		}
+		// commonStockDividendsPerShareDeclared, err = getCommonStockDividendsPerShareDeclared(facts)
+		// if err != nil {
+		// 	log.Println(err)
+		// 	errors = append(errors, err)
+		// }
+		commonStockDividendsPerShareDeclared = float64(0.0)
 	}
 	// If it the 'if' statement doesn't execute, then commonStockDividendsPerShareDeclared is initialized in our CompanyInfo
 	// struct with a value of 0.0
@@ -591,7 +744,7 @@ func fillCompanyInfoStruct(cik int64, sub *Submissions, facts *Facts) (*models.C
 		log.Println(err)
 		errors = append(errors, err)
 	}
-	isCurrentLTDGreaterThanPreviousLTD := longTermDebt > previousLongTermDebt
+	isCurrentLTDLessThanPreviousLTD := longTermDebt < previousLongTermDebt
 
 	// Point 6
 	assetsCurrent, previousAssetsCurrent, err := getCurrentAndPreviousYearAssetsCurrent(facts)
@@ -620,7 +773,7 @@ func fillCompanyInfoStruct(cik int64, sub *Submissions, facts *Facts) (*models.C
 	sharesIssuedInTheLastYear := commonStockSharesIssued - previousCommonStockSharesIssued
 	noNewSharesIssued := sharesIssuedInTheLastYear <= 0
 
-	if isCurrentLTDGreaterThanPreviousLTD {
+	if isCurrentLTDLessThanPreviousLTD {
 		pointsInLeverageLiquiditySourceOfFunds += 1
 	}
 	if isCurrentCRGreaterThanPreviousCR {
@@ -677,6 +830,7 @@ func fillCompanyInfoStruct(cik int64, sub *Submissions, facts *Facts) (*models.C
 	priceToBookRatio := 0.0
 	priceToSalesRatio := 0.0
 	dividendYield := 0.0
+
 	earningsPerShare, err := getEarningsPerShareBasic(facts)
 	if err != nil {
 		log.Println(err)
@@ -684,8 +838,8 @@ func fillCompanyInfoStruct(cik int64, sub *Submissions, facts *Facts) (*models.C
 	}
 
 	companyInfo := &models.CompanyInfo{
-		CIK:         cik,
-		SIC:         sic,
+		CIK:         convertCIKToURLString(cik),
+		SIC:         strconv.FormatInt(sic, 10),
 		CompanyName: name,
 		Ticker:      ticker,
 		Exchanges:   exchanges,
@@ -734,9 +888,9 @@ func fillCompanyInfoStruct(cik int64, sub *Submissions, facts *Facts) (*models.C
 
 		// PIOTROSKI LEVERAGE LIQUIDITY SOURCE OF FUNDS
 		// Point 5
-		LongTermDebt:                       longTermDebt,
-		PreviousYearLongTermDebt:           previousLongTermDebt,
-		IsCurrentLTDGreaterThanPreviousLTD: isCurrentLTDGreaterThanPreviousLTD,
+		LongTermDebt:                    longTermDebt,
+		PreviousYearLongTermDebt:        previousLongTermDebt,
+		IsCurrentLTDLessThanPreviousLTD: isCurrentLTDLessThanPreviousLTD,
 
 		// Point 6
 		AssetsCurrent:                    assetsCurrent,
@@ -793,7 +947,7 @@ func fillCompanyInfoStruct(cik int64, sub *Submissions, facts *Facts) (*models.C
 	}
 
 	if len(errors) > 0 {
-		return nil, fmt.Errorf("CompanyInfo struct couldn't be filled for CIK %v", cik)
+		return companyInfo, fmt.Errorf("errors occurred when building CompanyInfo for CIK %v", cik)
 	}
 
 	return companyInfo, nil
@@ -1045,7 +1199,7 @@ func getCostOfGoodsSold(facts *Facts) (int64, error) {
 		return 0, fmt.Errorf("getCostOfGoodsSold() returned an error: %v", err)
 	}
 
-	cogsValue := facts.Facts.USGAAP.Revenues.Units.USD[cogsValueIndex].Val
+	cogsValue := facts.Facts.USGAAP.CostOfGoodsSold.Units.USD[cogsValueIndex].Val
 
 	intVal, err := convertJSONNumberToInt64(cogsValue)
 	if err != nil {
@@ -1245,22 +1399,24 @@ func getCurrentAndPreviousGrossProfit(facts *Facts) (int64, int64, error) {
 }
 
 // MIGHT NOT EXIST - need to check if exists before retrieving
-func getCommonStockDividendsPerShareDeclared(facts *Facts) (float64, error) {
-	startingIndex := len(facts.Facts.USGAAP.CommonStockDividendsPerShareDeclared.Units.USDOverShares)
-	latestIndex, err := getNextYearlyFilingValueIndex(facts.Facts.USGAAP.CommonStockDividendsPerShareDeclared, startingIndex)
-	if err != nil {
-		return 0.0, fmt.Errorf("getCommonStockDividendsPerShareDeclared() returned an error: %v", err)
-	}
+// TODO: This functions call to the generic index retrieval function causes a slice index out of range
 
-	value := facts.Facts.USGAAP.CommonStockDividendsPerShareDeclared.Units.USDOverShares[latestIndex].Val
+// func getCommonStockDividendsPerShareDeclared(facts *Facts) (float64, error) {
+// 	startingIndex := len(facts.Facts.USGAAP.CommonStockDividendsPerShareDeclared.Units.USDOverShares)
+// 	latestIndex, err := getNextYearlyFilingValueIndex(facts.Facts.USGAAP.CommonStockDividendsPerShareDeclared, startingIndex)
+// 	if err != nil {
+// 		return 0.0, fmt.Errorf("getCommonStockDividendsPerShareDeclared() returned an error: %v", err)
+// 	}
 
-	floatVal, err := convertJSONNumberToFloat64(value)
-	if err != nil {
-		return 0.0, fmt.Errorf("getCommonStockDividendsPerShareDeclared(): couldn't convert to float64: %v", err)
-	}
+// 	value := facts.Facts.USGAAP.CommonStockDividendsPerShareDeclared.Units.USDOverShares[latestIndex].Val
 
-	return floatVal, nil
-}
+// 	floatVal, err := convertJSONNumberToFloat64(value)
+// 	if err != nil {
+// 		return 0.0, fmt.Errorf("getCommonStockDividendsPerShareDeclared(): couldn't convert to float64: %v", err)
+// 	}
+
+// 	return floatVal, nil
+// }
 
 // ##############################################################################################################################
 // # FUNCTIONS FOR CACULATING ADDITIONAL FACTS AND RATIOS																		#
@@ -1269,12 +1425,22 @@ func getCommonStockDividendsPerShareDeclared(facts *Facts) (float64, error) {
 // calculate BookValuePerShare given StockholdersEquity and WeightedAverageNumberOfSharesOutstanding
 func calcBookValuePerShare(stockholdersEquity int64, weightedAverageNumberOfSharesOutstanding int64) float64 {
 	// StockholdersEquity / WeightedAverageNumberOfSharesOustanding
-	return float64(stockholdersEquity) / float64(weightedAverageNumberOfSharesOutstanding)
+	if weightedAverageNumberOfSharesOutstanding != 0 {
+		return float64(stockholdersEquity) / float64(weightedAverageNumberOfSharesOutstanding)
+	}
+
+	return float64(0.0)
+
 }
 
 // calculate RevenuePerShare given Revenues and WANSO
 func calcRevenuePerShare(revenues int64, weightedAverageNumberOfSharesOutstanding int64) float64 {
-	return float64(revenues) / float64(weightedAverageNumberOfSharesOutstanding)
+	if weightedAverageNumberOfSharesOutstanding != 0 {
+		return float64(revenues) / float64(weightedAverageNumberOfSharesOutstanding)
+	}
+
+	return float64(0.0)
+
 }
 
 // func calculatePiotroskiScore() {
@@ -1324,53 +1490,93 @@ func calcRevenuePerShare(revenues int64, weightedAverageNumberOfSharesOutstandin
 // }
 
 func calcReturnOnAssets(netIncomeLoss int64, assets int64) float64 {
-	return float64(netIncomeLoss) / float64(assets)
+	if assets != 0 {
+		return float64(netIncomeLoss) / float64(assets)
+	}
+	return float64(0.0)
 }
 
 func calcCurrentRatio(assetsCurrent int64, liabilitiesCurrent int64) float64 {
-	return float64(assetsCurrent) / float64(liabilitiesCurrent)
+	if liabilitiesCurrent != 0 {
+		return float64(assetsCurrent) / float64(liabilitiesCurrent)
+	}
+
+	return float64(0.0)
+
 }
 
 func calcGrossProfitMargin(grossProfit int64, revenues int64) float64 {
-	return float64(grossProfit) / float64(revenues)
+	if revenues != 0 {
+		return float64(grossProfit) / float64(revenues)
+	}
+	return float64(0.0)
 }
 
 func calcAssetTurnoverRatio(revenues int64, currAssets int64, prevAssets int64) float64 {
-	return float64(revenues) / ((float64(currAssets) + float64(prevAssets)) / 2.0)
+	if !(currAssets == 0 && prevAssets == 0) {
+		return float64(revenues) / ((float64(currAssets) + float64(prevAssets)) / 2.0)
+	}
+	return float64(0.0)
 }
 
 func calcOperatingProfitMargin(operatingIncomeLoss int64, revenues int64) float64 {
-	return float64(operatingIncomeLoss) / float64(revenues)
+	if revenues != 0 {
+		return float64(operatingIncomeLoss) / float64(revenues)
+	}
+	return float64(0.0)
 }
 
 func calcNetProfitMargin(netIncomeLoss int64, revenues int64) float64 {
-	return float64(netIncomeLoss) / float64(revenues)
+	if revenues != 0 {
+		return float64(netIncomeLoss) / float64(revenues)
+	}
+	return float64(0.0)
 }
 
 func calcReturnOnEquity(netIncomeLoss int64, currStockholdersEquity int64, prevStockholdersEquity int64) float64 {
 	diffStockholdersEquity := float64(currStockholdersEquity) - float64(prevStockholdersEquity)
-	return float64(netIncomeLoss) / diffStockholdersEquity
+	if diffStockholdersEquity != 0 {
+		return float64(netIncomeLoss) / diffStockholdersEquity
+	}
+	return float64(0.0)
 }
 
 func calcQuickRatio(cashAndCashEquivalents int64, shortTermInvestments int64, accountsReceivableNetCurrent int64, liabilitiesCurrent int64) float64 {
-	return (float64(cashAndCashEquivalents) + float64(shortTermInvestments) + float64(accountsReceivableNetCurrent)) / float64(liabilitiesCurrent)
+	if liabilitiesCurrent != 0 {
+		return (float64(cashAndCashEquivalents) + float64(shortTermInvestments) + float64(accountsReceivableNetCurrent)) / float64(liabilitiesCurrent)
+	}
+	return float64(0.0)
 }
 
 func calcDebtToEquityRatio(liabilities int64, stockholdersEquity int64) float64 {
-	return float64(liabilities) / float64(stockholdersEquity)
+	if stockholdersEquity != 0 {
+		return float64(liabilities) / float64(stockholdersEquity)
+	}
+	return float64(0.0)
 }
 
 func calcDebtToAssetsRatio(liabilities int64, assets int64) float64 {
-	return float64(liabilities) / float64(assets)
+	if assets != 0 {
+		return float64(liabilities) / float64(assets)
+	}
+	return float64(0.0)
 }
 
 func calcInterestCoverageRatio(operatingIncomeLoss int64, interestExpense int64) float64 {
-	return float64(operatingIncomeLoss) / float64(interestExpense)
+	if interestExpense != 0 {
+		return float64(operatingIncomeLoss) / float64(interestExpense)
+
+	}
+	return float64(0.0)
 }
 
 func calcReceivablesTurnoverRatio(revenues int64, currAccountsReceivableNetCurrent int64, prevAccountsReceivableNetCurrent int64) float64 {
 	avgAccountsReceivable := float64(currAccountsReceivableNetCurrent+prevAccountsReceivableNetCurrent) / 2.0
-	return float64(revenues) / avgAccountsReceivable
+
+	if avgAccountsReceivable != 0 {
+		return float64(revenues) / avgAccountsReceivable
+	}
+	return float64(0.0)
 }
 
 // NEXT THREE CALCULATIONS NEED MARKET PRICE
@@ -1472,7 +1678,7 @@ func getNextYearlyFilingValueIndex(fact interface{}, startIndex int) (int, error
 			// Check if the current element represents a yearly filing
 			// frame should be empty, filing period should be 'FY' (filing year), and form type should be '10-K'
 
-			if (frameField.String() == "" || frameField.String() == "CY2023") && fpField.String() == "FY" && formField.String() == "10-K" {
+			if (frameField.String() == "" || len(frameField.String()) == 6) && fpField.String() == "FY" && formField.String() == "10-K" {
 				return i, nil
 			}
 		}
@@ -1509,6 +1715,10 @@ func convertJSONNumberToFloat64(num json.Number) (float64, error) {
 	}
 	return float64Val, nil
 }
+
+// type CIKList struct {
+// 	Data [][]any `json:"data"`
+// }
 
 // CURRENTLY NOT USING OPTION 2
 // Haven't figured out how to extract XBRL data from inlineXBRL, probably need an html parser to do so

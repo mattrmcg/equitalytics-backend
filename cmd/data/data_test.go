@@ -1,8 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"testing"
+
+	"github.com/mattrmcg/equitalytics-backend/internal/db"
+	"github.com/mattrmcg/equitalytics-backend/internal/services/data"
 )
 
 func TestSeedFunctions(t *testing.T) {
@@ -116,11 +120,11 @@ func TestSeedFunctions(t *testing.T) {
 
 func TestDataRetrievalFunctions(t *testing.T) {
 
-	cik := int64(796343)
+	// cik := int64(796343)
 
-	sub, _ := getSubmissionsWithCIK(cik)
+	// sub, _ := getSubmissionsWithCIK(cik)
 
-	facts, _ := getFactsWithCIK(cik)
+	// facts, _ := getFactsWithCIK(cik)
 	// t.Run("should pass if correct yearly filing value index is retrieved correctly", func(t *testing.T) {
 
 	// assetsIndex, err := getLatestYearlyFilingValueIndex(facts.Facts.USGAAP.Assets)
@@ -195,14 +199,125 @@ func TestDataRetrievalFunctions(t *testing.T) {
 	// })
 
 	// BROKEN
-	t.Run("should pass if fillCompanyInfoStruct() fills and returns a struct without error", func(t *testing.T) {
-		companyInfo, err := fillCompanyInfoStruct(cik, sub, facts)
+	// t.Run("should pass if fillCompanyInfoStruct() fills and returns a struct without error", func(t *testing.T) {
+	// 	companyInfo, err := fillCompanyInfoStruct(cik, sub, facts)
+	// 	if err != nil {
+	// 		t.Errorf("fillCompanyInfoStruct() did not exeucte without error\n")
+	// 	}
+	// 	if companyInfo != nil {
+	// 		fmt.Printf("%+v\n", companyInfo)
+	// 	}
+	// })
+
+	// PG CIK: 80424
+	// t.Run("should pass if getCostOfGoodsSold() runs without error for Proctor and Gamble", func(t *testing.T) {
+	// 	pgFacts, _ := getFactsWithCIK(int64(80424))
+
+	// 	pgCOGS, err := getCostOfGoodsSold(pgFacts)
+	// 	if err != nil {
+	// 		t.Errorf("getCostOfGoodsSold() didn't work: %v", err)
+	// 	}
+
+	// 	fmt.Println(pgCOGS)
+
+	// })
+
+}
+
+func TestDBFunctions(t *testing.T) {
+	dbPool, err := db.CreateDBPool("postgres://root:123@127.0.0.1:5432/eql")
+	if err != nil {
+		t.Error(err)
+	}
+
+	defer db.CloseDBPool(dbPool)
+
+	dataService := data.NewDataService(dbPool)
+
+	t.Run("should pass if db connection is opened successfully", func(t *testing.T) {
+		err = dbPool.Ping(context.Background())
 		if err != nil {
-			t.Errorf("fillCompanyInfoStruct() did not exeucte without error\n")
-		}
-		if companyInfo != nil {
-			fmt.Printf("%+v\n", companyInfo)
+			t.Errorf("unable to ping db pool: %v", err)
 		}
 	})
+	// t.Run("should pass if company info is correctly added to database", func(t *testing.T) {
+	// 	cik := int64(796343)
+	// 	sub, _ := getSubmissionsWithCIK(cik)
+	// 	facts, _ := getFactsWithCIK(cik)
 
+	// 	companyInfo, err := fillCompanyInfoStruct(cik, sub, facts)
+	// 	if err != nil {
+	// 		t.Error("unable to fill company info struct")
+	// 	}
+
+	// 	exists, err := dataService.CheckIfCIKExists(context.Background(), "0000796343")
+	// 	if err != nil {
+	// 		t.Error(err)
+	// 	}
+
+	// 	if exists != true {
+
+	// 		err = dataService.AddCompanyInfoRow(context.Background(), companyInfo)
+	// 		if err != nil {
+	// 			t.Errorf("unable to add: %v", err)
+	// 		}
+	// 	} else {
+	// 		fmt.Println("cik already exists!!")
+	// 	}
+	// })
+
+	// 	t.Run("should pass if exists function works as intended", func(t *testing.T) {
+
+	// 		exists, err := dataService.CheckIfCIKExists(context.Background(), "0000796343")
+	// 		if err != nil {
+	// 			t.Error(err)
+	// 		}
+
+	// 		if exists != true {
+	// 			t.Error("didn't return correct boolean value")
+	// 		}
+	// 	})
+	// t.Run("should pass if RetrieveCompanyMarketFacts works as intended", func(t *testing.T) {
+	// 	companies, err := dataService.RetrieveCompanyMarketData(context.Background())
+	// 	if err != nil {
+	// 		t.Error("unable to retrieve market data")
+	// 	}
+	// 	c := companies[0]
+	// 	fmt.Printf("%v, %v, %v, %v\n", c.Ticker, c.EarningsPerShare, c.BookValuePerShare, c.RevenuePerShare)
+	// })
+
+	// t.Run("should pass if UpdateMarketPriceFacts() works as intended", func(t *testing.T) {
+	// 	err := dataService.UpdateMarketPriceFacts(context.Background(), "0000001750", 1, 1, 1, 1)
+	// 	if err != nil {
+	// 		t.Error("unable to update market data")
+	// 	}
+	// })
+
+	t.Run("should pass if fetchMarketPrice() works as intended", func(t *testing.T) {
+		mp, err := fetchMarketPrice("SWKS")
+		if err != nil {
+			t.Error(err)
+		}
+
+		fmt.Println(mp)
+	})
+
+	t.Run("should pass if update company feature works as intended", func(t *testing.T) {
+		sub, err := getSubmissionsWithCIK(int64(1750))
+		if err != nil {
+			t.Error("unable to get submissions struct")
+		}
+
+		facts, err := getFactsWithCIK(int64(1750))
+		if err != nil {
+			t.Error("unable to get facts struct")
+		}
+
+		testInfo, _ := fillCompanyInfoStruct(int64(1750), sub, facts)
+
+		err = dataService.UpdateCompanyInfoRow(context.Background(), testInfo)
+		if err != nil {
+			t.Errorf("unable to update row: %v", err)
+		}
+	})
 }

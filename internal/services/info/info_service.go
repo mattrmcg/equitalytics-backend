@@ -13,6 +13,11 @@ func NewInfoService(db *pgxpool.Pool) *InfoService {
 	return &InfoService{db: db}
 }
 
-func (infoService *InfoService) GetInfoByCIK(cik int) (*models.CompanyInfo, error) {
+func (infoService *InfoService) GetInfoByCIK(cik string) (*models.CompanyInfo, error) {
+	return nil, nil
+}
+
+func (infoService *InfoService) GetInfoByTicker(ticker string) (*models.CompanyInfo, error) {
+
 	return nil, nil
 }
