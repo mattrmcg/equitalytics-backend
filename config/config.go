@@ -7,9 +7,10 @@ import (
 )
 
 type Config struct {
-	Host  string
-	Port  string
-	DBURL string
+	Host      string
+	Port      string
+	DBURL     string
+	MarketURL string
 	//JWTExpirationInSeconds int64
 	//JWTSecret              string
 }
@@ -20,9 +21,10 @@ func initConfig() Config {
 	godotenv.Load()
 
 	return Config{
-		Host:  getEnv("HOST", "http://localhost"),
-		Port:  getEnv("PORT", "8080"),
-		DBURL: getEnv("DATABASE_URL", ""),
+		Host:      getEnv("HOST", "http://localhost"),
+		Port:      getEnv("PORT", "8080"),
+		DBURL:     getEnv("DATABASE_URL", ""),
+		MarketURL: getEnv("MARKET_URL", ""),
 	}
 }
 

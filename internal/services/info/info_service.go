@@ -38,3 +38,30 @@ func (infoService *InfoService) GetInfoByTicker(ctx context.Context, ticker stri
 
 	return &info, nil
 }
+
+func (infoService *InfoService) GetAllTickers(ctx context.Context) ([]string, error) {
+	query := `SELECT ticker FROM company_info`
+
+	rows, err := infoService.db.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("query error: %v", err)
+	}
+	defer rows.Close()
+
+	var tickers []string
+
+	for rows.Next() {
+		var ticker string
+		err := rows.Scan(&ticker)
+		if err != nil {
+			return nil, fmt.Errorf("scan error: %v", err)
+		}
+		tickers = append(tickers, ticker)
+	}
+
+	if rows.Err() != nil {
+		return nil, fmt.Errorf("rows error: %v", rows.Err())
+	}
+
+	return tickers, nil
+}

@@ -23,9 +23,10 @@ func (h *InfoHandler) RegisterRoutes(r chi.Router) {
 	// Route to grab info about given ticker
 	r.Get("/info/{ticker}", h.handleGetInfo)
 
-}
+	// Route to grab all tickers in database
+	r.Get("/info/tickers", h.handleGetTickers)
 
-// TODO: Define handler functions
+}
 
 func (h *InfoHandler) handlePing(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, http.StatusOK, map[string]any{
@@ -41,6 +42,29 @@ func (h *InfoHandler) handleGetInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = utils.WriteJSON(w, http.StatusOK, info)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+}
+
+func (h *InfoHandler) handleGetTickers(w http.ResponseWriter, r *http.Request) {
+	tickers, err := h.service.GetAllTickers(r.Context())
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	type tickerValue struct {
+		Value string `json:"value"`
+	}
+
+	var tickerList []tickerValue
+	for _, ticker := range tickers {
+		tickerList = append(tickerList, tickerValue{Value: ticker})
+	}
+
+	err = utils.WriteJSON(w, http.StatusOK, tickerList)
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err)
 		return

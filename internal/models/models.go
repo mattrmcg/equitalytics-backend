@@ -14,6 +14,7 @@ type UserService interface {
 type InfoService interface {
 	GetInfoByCIK(cik string) (*CompanyInfo, error)
 	GetInfoByTicker(ctx context.Context, ticker string) (*CompanyInfo, error)
+	GetAllTickers(ctx context.Context) ([]string, error)
 }
 
 type User struct {
@@ -29,7 +30,7 @@ type User struct {
 type CompanyInfo struct {
 	CIK         string
 	SIC         string // possible make this a foreign key
-	CompanyName string
+	CompanyName string `json:"companyName"`
 	Ticker      string
 	Exchanges   []string
 

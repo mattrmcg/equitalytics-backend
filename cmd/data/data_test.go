@@ -225,7 +225,7 @@ func TestDataRetrievalFunctions(t *testing.T) {
 }
 
 func TestDBFunctions(t *testing.T) {
-	dbPool, err := db.CreateDBPool("postgres://root:123@127.0.0.1:5432/eql")
+	dbPool, err := db.CreateDBPool("")
 	if err != nil {
 		t.Error(err)
 	}

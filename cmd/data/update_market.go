@@ -80,14 +80,14 @@ func updateMarketPrice() {
 }
 
 func fetchMarketPrice(ticker string) (float64, error) {
-	url := fmt.Sprint("https://query1.finance.yahoo.com/v8/finance/chart/", ticker)
+	url := fmt.Sprint(config.Envs.MarketURL, ticker)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return 0.0, err
 	}
 
-	time.Sleep(time.Millisecond * 200)
+	time.Sleep(time.Millisecond * 250)
 	resp, err := client.Do(req)
 	if err != nil {
 		return 0.0, err
