@@ -1,25 +1,24 @@
 # syntax=docker/dockerfile:1
 
-FROM golang:1.22 as builder
+FROM golang:1.22 AS build
 
 WORKDIR /app
 
-COPY go.mod ./
+COPY go.mod go.sum ./
+
 RUN go mod download
 
-COPY *.go .
+COPY . .
 
 RUN go build -o /app/bin/server cmd/main.go
 
-RUN go build -o /app/bin/data cmd/data/main.go
+RUN go build -o /app/bin/data cmd/data/*.go
 
-RUN go build -o /app/bin/migrate cmd/data/main.go
+RUN go build -o /app/bin/migrate cmd/migrate/main.go
 
-FROM debian:bullseye-slim
+FROM ubuntu:latest
 
-WORKDIR /app
-
-COPY --from=builder /app/bin/server /app/bin/data /app/bin/migrate /app/bin/
+COPY --from=build /app/bin/server /app/bin/data /app/bin/migrate /app/bin/
 
 EXPOSE 8080
 
