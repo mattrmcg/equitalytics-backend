@@ -1,5 +1,5 @@
 # Backend for Equitalytics.com
-This repository houses all the backend components of [https://www.equitalytics.com](Equitalytics.com). 
+This repository houses all the backend components of [Equitalytics](https://www.equitalytics.com). 
 
 The backend is entirely built in go, and hosted in an Azure Container Instance. The docker container's base image is ubuntu server. The data is stored in a PostgreSQL database server also hosted and maintained on Azure.
 
