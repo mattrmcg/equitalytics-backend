@@ -1,4 +1,4 @@
-# Backend for Equitalytics.com
+## Backend for Equitalytics.com
 ### Introduction
 This repository houses all the backend components of [Equitalytics](https://www.equitalytics.com). 
 
