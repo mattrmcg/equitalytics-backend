@@ -6,6 +6,8 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// TEST
+
 type Config struct {
 	Host      string
 	Port      string

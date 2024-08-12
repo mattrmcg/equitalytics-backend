@@ -19,7 +19,7 @@ func main() {
 
 	// driver, err := pgx.WithInstance()
 
-	dbUrl := fmt.Sprintf("%v?sslmode=disable", config.Envs.DBURL)
+	dbUrl := fmt.Sprintf("%v?sslmode=require", config.Envs.DBURL)
 	m, err := migrate.New(
 		"file://cmd/migrate/migrations",
 		dbUrl,
