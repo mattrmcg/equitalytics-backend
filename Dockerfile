@@ -18,7 +18,7 @@ RUN go build -o /app/bin/migrate cmd/migrate/main.go
 
 FROM ubuntu:latest
 
-# install cron and curl
+# install curl
 RUN apt-get update && apt-get install -y curl
 
 COPY --from=build /app/bin/server /app/bin/data /app/bin/migrate /app/bin/
