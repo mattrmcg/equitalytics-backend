@@ -2,7 +2,7 @@
 **NOTE**: A logically separated backend is no longer used in the production build of equitalytics.net. The switch to supabase made it redundant. I'm leaving this repo up so others can reference it in their own projects.
 
 ### Introduction
-This repository houses all the backend components of [Equitalytics](https://www.equitalytics.com). 
+This repository houses all the backend components of [Equitalytics](https://www.equitalytics.net). 
 
 ### Description
 The backend is entirely built in go, and hosted in an Azure Container Instance. The docker container's base image is ubuntu server. The data is stored in a PostgreSQL database server also hosted and maintained on Azure.
